@@ -21,9 +21,9 @@ var (
 )
 
 func init() {
-	database = "goapimongotest"
-	username = "goapimongotest"
-	password = "zyldlQvsCUvPa9THhB4kAX2QimdrVfbZyQCEBhR3YUUMnvY18heclgYM2AjxVCDoBagvsPlELWNFACDbuZeIpA=="
+	database = "gorestapimongodb"
+	username = "gorestapimongodb"
+	password = "ec4ZJJOn1Ig8D9W9rhXaI6LAchfEzzEAorzkbK3JMp842q7D01Ml44aHnPiyalBNA3pPeRVJiygCACDbimWopg=="
 }
 
 type todo struct {
