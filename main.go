@@ -2,61 +2,98 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-
-	"github.com/gin-gonic/gin"
 )
 
 var (
 	database string
 	username string
 	password string
+	w        http.ResponseWriter
 )
 
 func init() {
-	database = "gorestapimongodb"
-	username = "gorestapimongodb"
-	password = "ec4ZJJOn1Ig8D9W9rhXaI6LAchfEzzEAorzkbK3JMp842q7D01Ml44aHnPiyalBNA3pPeRVJiygCACDbimWopg=="
+	database = "gorestapimongo"
+	username = "gorestapimongo"
+	password = "joAwxM4FaZuRDpRYXgGdXhEARn4TA9wWqa1xOLMir12xZy5DlxNkSL9QYi7Hek0ILquPWMbraA1uACDblj0vtg=="
 }
 
 type todo struct {
-	ID        string `json: "id"`
-	Item      string `json: "item"`
-	Completed bool   `json: "completed"`
+	ID        primitive.ObjectID `json: "id"`
+	Item      string             `json: "item"`
+	Completed bool               `json: "completed"`
 }
 
 var todos = []todo{
-	{ID: "1", Item: "Clean Room", Completed: false},
+	/*{ID: "1", Item: "Clean Room", Completed: false},
 	{ID: "2", Item: "Read Book", Completed: false},
-	{ID: "3", Item: "Record Video", Completed: false},
+	{ID: "3", Item: "Record Video", Completed: false},*/
 }
 
-func getTodos(context *gin.Context) { //this function is to convert the array todos into JSON, cause in REST API client and server understand only JSON
+func getTodos(contex *gin.Context) { //this function is to convert the array todos into JSON, cause in REST API client and server understand only JSON
 
-	context.IndentedJSON(http.StatusOK, todos)
+	contex.IndentedJSON(http.StatusOK, todos)
 }
 
-func addTodo(context *gin.Context) {
+func addTodo(contex *gin.Context) {
 
 	var newTodo todo
-	if err := context.BindJSON(&newTodo); err != nil { //BIND JSON is used to add the request from our body to the passed variable which is in this case type struct.
+
+	if err := contex.BindJSON(&newTodo); err != nil { //BIND JSON is used to add the request from our body to the passed variable which is in this case type struct.
 		return //this is used if the POST request to add the data is not in the format of the struct it will give an error
+	}
+
+	newTodo.ID = primitive.NewObjectID()
+
+	connecturi := fmt.Sprintf(
+		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
+		username,
+		password,
+		database)
+
+	// Set the client options
+	clientOptions := options.Client().ApplyURI(connecturi)
+
+	// Set the context with a 10-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Connect to the MongoDB instance
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Connected to Cosmos DB MongoDB instance!")
+
+	collection := client.Database(database).Collection("samplecollection")
+	_, err = collection.InsertOne(context.Background(), &newTodo)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	todos = append(todos, newTodo)
 
-	context.IndentedJSON(http.StatusCreated, newTodo)
+	contex.IndentedJSON(http.StatusCreated, newTodo)
 
 }
 
-func getTodoID(id string) (*todo, error) { //this function is used to search the given ID in the array TODO and return struct todo or an error
+/*func getTodoID(id string) (*todo, error) { //this function is used to search the given ID in the array TODO and return struct todo or an error
 
 	for i, t := range todos { //this is used to iterate the todos array and find the given ID, if ID is not here then user defined error is thrown using errors package
 		if t.ID == id {
@@ -91,44 +128,19 @@ func getTodo(context *gin.Context) {
 		return
 	}
 	context.IndentedJSON(http.StatusOK, todo)
-}
+}*/
 
 func authenticateMongoDB() {
-	connecturi := fmt.Sprintf(
-		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
-		username,
-		password,
-		database)
 
-	// Set the client options
-	clientOptions := options.Client().ApplyURI(connecturi)
-
-	// Set the context with a 10-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Connect to the MongoDB instance
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check the connection
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println("Connected to Cosmos DB MongoDB instance!")
 }
 
 func main() {
 	authenticateMongoDB()
-	router := gin.Default()                      //to create the server
-	router.GET("/todos", getTodos)               //this is the method for GET request
-	router.GET("/todos/:id", getTodo)            //this is to call getTodo function which is searching for dynamic ID in the array todo
-	router.PATCH("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
-	router.POST("/todos", addTodo)               //this is the method for POST request
-	router.Run("localhost:9090")                 //to run the server on port 9090
+	router := gin.Default()        //to create the server
+	router.GET("/todos", getTodos) //this is the method for GET request
+	//router.GET("/todos/:id", getTodo)            //this is to call getTodo function which is searching for dynamic ID in the array todo
+	//router.PATCH("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
+	router.POST("/todos", addTodo) //this is the method for POST request
+	router.Run("localhost:9090")   //to run the server on port 9090
 
 }
