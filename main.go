@@ -29,7 +29,7 @@ func init() {
 }
 
 type todo struct {
-	ID        primitive.ObjectID `json: "id" bson: "id"`
+	ID        primitive.ObjectID `json: "id" bson: "_id,omitempty"`
 	Item      string             `json: "item" bson: "item"`
 	Completed bool               `json: "completed"  bson: "completed"`
 }
@@ -69,8 +69,6 @@ func addTodo(contex *gin.Context) {
 	if err := contex.BindJSON(&newTodo); err != nil { //BIND JSON is used to add the request from our body to the passed variable which is in this case type struct.
 		return //this is used if the POST request to add the data is not in the format of the struct it will give an error
 	}
-
-	newTodo.ID = primitive.NewObjectID()
 
 	client := authenticateMongoDB()
 	collection := client.Database(database).Collection("samplecollection")
@@ -132,7 +130,7 @@ func toggleTodoStatus(contex *gin.Context) {
 		contex.IndentedJSON(http.StatusNotFound, gin.H{"message": "ID not found"}) //with this IF block we are checking the whether ID is there or not
 		return
 	}
-	filter := bson.M{"_id": bson.M{"$eq": objID}}
+	filter := bson.M{"id": bson.M{"$eq": objID}}
 
 	update := bson.M{"$set": bson.M{"item": "New Update Request"}}
 
@@ -191,12 +189,11 @@ func authenticateMongoDB() *mongo.Client {
 }
 
 func main() {
-	authenticateMongoDB()
-	router := gin.Default()                    //to create the server
-	router.GET("/todos", getTodos)             //this is the method for GET request
-	router.GET("/todos/:id", getTodo)          //this is to call getTodo function which is searching for dynamic ID in the array todo
-	router.PUT("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
-	router.POST("/todos", addTodo)             //this is the method for POST request
-	router.Run("localhost:9090")               //to run the server on port 9090
+	router := gin.Default()                      //to create the server
+	router.GET("/todos", getTodos)               //this is the method for GET request
+	router.GET("/todos/:id", getTodo)            //this is to call getTodo function which is searching for dynamic ID in the array todo
+	router.PATCH("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
+	router.POST("/todos", addTodo)               //this is the method for POST request
+	router.Run("localhost:9090")                 //to run the server on port 9090
 
 }
