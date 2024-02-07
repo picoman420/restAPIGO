@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -90,17 +91,37 @@ func addTodo(contex *gin.Context) {
 
 }
 
-/*func getTodoID(id string) (*todo, error) { //this function is used to search the given ID in the array TODO and return struct todo or an error
+func getTodoID(id string) (*todo, error) { //this function is used to search the given ID in the array TODO and return struct todo or an error
 
-	for i, t := range todos { //this is used to iterate the todos array and find the given ID, if ID is not here then user defined error is thrown using errors package
-		if t.ID == id {
-			return &todos[i], nil
+	client := authenticateMongoDB()
+
+	collection := client.Database(database).Collection("samplecollection")
+
+	cursor, err := collection.Find(context.Background(), bson.D{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+	defer cursor.Close(context.Background())
+	objID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		panic(err)
+	}
+
+	for cursor.Next(context.Background()) {
+		var todo todo
+		err = cursor.Decode(&todo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		if todo.ID == objID {
+			return &todo, nil
 		}
 	}
+
 	return nil, errors.New("ID NOT FOUND")
 }
 
-func toggleTodoStatus(context *gin.Context) {
+/*func toggleTodoStatus(context *gin.Context) {
 	id := context.Param("id")  //this is used to dynamically fetch the id from the http string
 	todo, err := getTodoID(id) //getting the todo and err status from GETID func
 
@@ -113,7 +134,7 @@ func toggleTodoStatus(context *gin.Context) {
 
 	context.IndentedJSON(http.StatusOK, todo)
 
-}
+}*/
 
 func getTodo(context *gin.Context) {
 
@@ -125,7 +146,7 @@ func getTodo(context *gin.Context) {
 		return
 	}
 	context.IndentedJSON(http.StatusOK, todo)
-}*/
+}
 
 func authenticateMongoDB() *mongo.Client {
 
@@ -161,9 +182,9 @@ func authenticateMongoDB() *mongo.Client {
 
 func main() {
 	authenticateMongoDB()
-	router := gin.Default()        //to create the server
-	router.GET("/todos", getTodos) //this is the method for GET request
-	//router.GET("/todos/:id", getTodo)            //this is to call getTodo function which is searching for dynamic ID in the array todo
+	router := gin.Default()           //to create the server
+	router.GET("/todos", getTodos)    //this is the method for GET request
+	router.GET("/todos/:id", getTodo) //this is to call getTodo function which is searching for dynamic ID in the array todo
 	//router.PATCH("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
 	router.POST("/todos", addTodo) //this is the method for POST request
 	router.Run("localhost:9090")   //to run the server on port 9090
