@@ -41,31 +41,7 @@ var todos = []todo{
 
 func getTodos(contex *gin.Context) { //this function is to convert the array todos into JSON, cause in REST API client and server understand only JSON
 
-	connecturi := fmt.Sprintf(
-		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
-		username,
-		password,
-		database)
-
-	// Set the client options
-	clientOptions := options.Client().ApplyURI(connecturi)
-
-	// Set the context with a 10-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Connect to the MongoDB instance
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check the connection
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Connected to Cosmos DB MongoDB instance!")
+	client := authenticateMongoDB()
 
 	collection := client.Database(database).Collection("samplecollection")
 
@@ -99,34 +75,9 @@ func addTodo(contex *gin.Context) {
 
 	newTodo.ID = primitive.NewObjectID()
 
-	connecturi := fmt.Sprintf(
-		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
-		username,
-		password,
-		database)
-
-	// Set the client options
-	clientOptions := options.Client().ApplyURI(connecturi)
-
-	// Set the context with a 10-second timeout
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Connect to the MongoDB instance
-	client, err := mongo.Connect(ctx, clientOptions)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	// Check the connection
-	err = client.Ping(ctx, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println("Connected to Cosmos DB MongoDB instance!")
-
+	client := authenticateMongoDB()
 	collection := client.Database(database).Collection("samplecollection")
-	_, err = collection.InsertOne(context.Background(), &newTodo)
+	_, err := collection.InsertOne(context.Background(), &newTodo)
 
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -176,7 +127,35 @@ func getTodo(context *gin.Context) {
 	context.IndentedJSON(http.StatusOK, todo)
 }*/
 
-func authenticateMongoDB() {
+func authenticateMongoDB() *mongo.Client {
+
+	connecturi := fmt.Sprintf(
+		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
+		username,
+		password,
+		database)
+
+	// Set the client options
+	clientOptions := options.Client().ApplyURI(connecturi)
+
+	// Set the context with a 10-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Connect to the MongoDB instance
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Connected to Cosmos DB MongoDB instance!")
+
+	return client
 
 }
 
