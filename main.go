@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -39,6 +40,51 @@ var todos = []todo{
 }
 
 func getTodos(contex *gin.Context) { //this function is to convert the array todos into JSON, cause in REST API client and server understand only JSON
+
+	connecturi := fmt.Sprintf(
+		"mongodb://%s:%s@%s.documents.azure.com:10255/?ssl=true",
+		username,
+		password,
+		database)
+
+	// Set the client options
+	clientOptions := options.Client().ApplyURI(connecturi)
+
+	// Set the context with a 10-second timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Connect to the MongoDB instance
+	client, err := mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Check the connection
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Connected to Cosmos DB MongoDB instance!")
+
+	collection := client.Database(database).Collection("samplecollection")
+
+	cursor, err := collection.Find(context.Background(), bson.D{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer cursor.Close(context.Background())
+
+	for cursor.Next(context.Background()) {
+		var todo todo
+		err = cursor.Decode(&todo)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		todos = append(todos, todo)
+	}
 
 	contex.IndentedJSON(http.StatusOK, todos)
 }
