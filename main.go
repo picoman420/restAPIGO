@@ -29,16 +29,12 @@ func init() {
 }
 
 type todo struct {
-	ID        primitive.ObjectID `json: "id"`
-	Item      string             `json: "item"`
-	Completed bool               `json: "completed"`
+	ID        primitive.ObjectID `json: "id" bson: "id"`
+	Item      string             `json: "item" bson: "item"`
+	Completed bool               `json: "completed"  bson: "completed"`
 }
 
-var todos = []todo{
-	/*{ID: "1", Item: "Clean Room", Completed: false},
-	{ID: "2", Item: "Read Book", Completed: false},
-	{ID: "3", Item: "Record Video", Completed: false},*/
-}
+var todos = []todo{}
 
 func getTodos(contex *gin.Context) { //this function is to convert the array todos into JSON, cause in REST API client and server understand only JSON
 
@@ -121,20 +117,34 @@ func getTodoID(id string) (*todo, error) { //this function is used to search the
 	return nil, errors.New("ID NOT FOUND")
 }
 
-/*func toggleTodoStatus(context *gin.Context) {
-	id := context.Param("id")  //this is used to dynamically fetch the id from the http string
-	todo, err := getTodoID(id) //getting the todo and err status from GETID func
+func toggleTodoStatus(contex *gin.Context) {
 
+	client := authenticateMongoDB()
+
+	collection := client.Database(database).Collection("samplecollection")
+	id := contex.Param("id") //this is used to dynamically fetch the id from the http string
+	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
-		context.IndentedJSON(http.StatusNotFound, gin.H{"message": "ID not found"}) //with this IF block we are checking the whether ID is there or not
-		return
+		panic(err)
 	}
 
-	todo.Completed = !todo.Completed
+	if err != nil {
+		contex.IndentedJSON(http.StatusNotFound, gin.H{"message": "ID not found"}) //with this IF block we are checking the whether ID is there or not
+		return
+	}
+	filter := bson.M{"_id": bson.M{"$eq": objID}}
 
-	context.IndentedJSON(http.StatusOK, todo)
+	update := bson.M{"$set": bson.M{"item": "New Update Request"}}
 
-}*/
+	result, err := collection.UpdateOne(context.Background(), filter, update)
+
+	if err != nil {
+		panic(err)
+	}
+
+	contex.IndentedJSON(http.StatusOK, result)
+
+}
 
 func getTodo(context *gin.Context) {
 
@@ -182,11 +192,11 @@ func authenticateMongoDB() *mongo.Client {
 
 func main() {
 	authenticateMongoDB()
-	router := gin.Default()           //to create the server
-	router.GET("/todos", getTodos)    //this is the method for GET request
-	router.GET("/todos/:id", getTodo) //this is to call getTodo function which is searching for dynamic ID in the array todo
-	//router.PATCH("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
-	router.POST("/todos", addTodo) //this is the method for POST request
-	router.Run("localhost:9090")   //to run the server on port 9090
+	router := gin.Default()                    //to create the server
+	router.GET("/todos", getTodos)             //this is the method for GET request
+	router.GET("/todos/:id", getTodo)          //this is to call getTodo function which is searching for dynamic ID in the array todo
+	router.PUT("/todos/:id", toggleTodoStatus) //this is to call the PATCH http request, It is changing the completed boolean.
+	router.POST("/todos", addTodo)             //this is the method for POST request
+	router.Run("localhost:9090")               //to run the server on port 9090
 
 }
